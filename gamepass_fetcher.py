@@ -72,15 +72,12 @@ class GamePass:
         Gets review data for all games in the gampeass catalogue
         :return Dict: Dict with game name as key and review scores as value
         """
-        reviews_list = []
-        not_found = []
         for game, info in self.catalogue.items():
             short_title = info["short_title"]
             opencritic_id = search_game(game)
 
             if type(opencritic_id) == int:
                 reviews = get_game_reviews(opencritic_id)
-                reviews_list.append(reviews)
                 self.catalogue[game]["opencritic"] = reviews
             else:
                 self.catalogue[game]["opencritic"] = None
@@ -119,67 +116,7 @@ class GamePass:
         return df
 
 
-class Game:
-    def __init__(self, game_id: str):
-        self.id = game_id
-        self._game_info = self.parse_game_info()
-
-    # @property
-    # def game_info(self):
-    #     return self._game_info
-
-    def get_game_info(self):
-        info_url = f"{PRODUCT_URL}{self.id}" \
-                   f"&market=US&languages=en-us&MS-CV=DGU1mcuYo0WMM"
-
-        info = requests.get(info_url)
-        return info.json()
-
-    def __repr__(self):
-        return (f"{self._game_info['name']} released {self._game_info['release_date'].date()}. "
-                f"Developed by \"{self._game_info['developer']}\" "
-                f"the game has a an average user rating of {self._game_info['user_ratings'][-1]['AverageRating']}/5 "
-                f"with {self._game_info['user_ratings'][-1]['RatingCount']} reviews")
-
-    def parse_game_info(self):
-        game_info = self.get_game_info()["Products"][0]
-
-        return {
-            "last_modified": game_info["LastModifiedDate"],
-            "name": game_info["LocalizedProperties"][0]["ShortTitle"],
-            "developer": game_info["LocalizedProperties"][0][
-                "DeveloperName"
-            ],
-            "publisher": game_info["LocalizedProperties"][0][
-                "PublisherName"
-            ],
-            "description": game_info["LocalizedProperties"][0][
-                "ShortDescription"
-            ],
-            "image_urls": game_info["LocalizedProperties"][0][
-                "Images"
-            ],
-            "user_ratings": game_info["MarketProperties"][0][
-                "UsageData"
-            ],
-            "release_date": arrow.get(game_info["MarketProperties"][0]["OriginalReleaseDate"])
-        }
-
-    @property
-    def game_info(self):
-        return self._game_info
-
-
-xpass = GamePass()
-reviews = xpass.get_opencritic_reviews()
-df = xpass.to_pandas_df()
-# print(xpass)
-# slice_dict = list(xpass.catalogue.keys())
-# for game in list(xpass.catalogue.keys())[:5]:
-#     print(game, get_game_reviews(search_game(game)))
-# games = [Game(game_id.get("id")) for game_id in xpass.catalogue[1:10]]
-#
-# for game in games:
-#     print(game)
-# test = Game("9P5VMG8D4P4B")
-# print(test)
+if __name__ == '__main__':
+    xpass = GamePass()
+    xpass.get_opencritic_reviews()
+# df = xpass.to_pandas_df()
