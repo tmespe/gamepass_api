@@ -1,9 +1,11 @@
 from typing import List, Dict
-import pandas as pd
+
 import arrow
 import numpy as np
+import pandas as pd
 import requests
 from sqlalchemy import create_engine
+
 from opencritic_fethcer import search_game, get_game_reviews
 
 eng = create_engine('sqlite:///:gamepass:')
@@ -17,17 +19,19 @@ class GamePass:
     def __init__(self, catalogue_url: str = CATALOG_URL):
         self.catalogue_url = catalogue_url
         self.date = arrow.now()
-        self.catalogue_ids = self.update_catalogue_ids()
+        # self.catalogue_ids = self.update_catalogue_ids()
         self.catalogue = self.get_all_games_info()
 
-    def update_catalogue_ids(self) -> List[str]:
+    @property
+    def catalogue_ids(self) -> List[str]:
         """
-        Updates the entire gamepass catalogue
-        :return: List of gamepass games
+        Gets ids for all games in the catalogue
+        :return List: List of ids for all gamepass games
         """
 
-        # Gets gamepass catalogue from API and returns a list of all game IDs. Skip first since unnecessary metadata
+        # Skip first entry since unnecessary metadata
         catalogue = requests.get(self.catalogue_url).json()
+
         return [item["id"] for item in catalogue[1:]]
 
     def __len__(self):
@@ -36,33 +40,50 @@ class GamePass:
     def __repr__(self):
         return f"Gamepass currently has {len(self)} games as of {self.date.humanize()}"
 
+    @property
     def average_user_rating(self):
         """
         Calculates average user rating on the xbox store for all gamepass games
         :return float: average user rating as float
         """
-        ratings = []
+        ratings = [game["user_rating"] for game in self.catalogue.values()]
 
-        # Loop over games in catalogue and get user rating from api
-        for game in self.catalogue:
-            rating = Game(game.get('id')).game_info['user_ratings'][-1]['AverageRating']
-            ratings.append(rating)
         return np.around(np.mean(ratings), 2)
 
-    def get_all_games_info(self):
-        relevant_keys = ["name", "percentRecommended", "numReviews", "medianScore", "averageScore", "percentile",
-                         "Platforms", "Genres", "firstReleaseDate"]
+    def get_all_games_info(self) -> Dict:
+        """
+        Gets all game information for all games in the gamepass catalogue
+        :return Dict: Dict of strings with game name as key and DeveloperName, PublisherName, PublisherUrl, SupportUrl,
+        Description, ShortDescription, LastModifiedDate, UserRating, N_UserRating, PosterUrl
+        """
 
         info_url = f"https://displaycatalog.mp.microsoft.com/v7.0/products?bigIds={','.join(self.catalogue_ids)}" \
                    f"&market=US&languages=en-us&MS-CV=DGU1mcuYo0WMM"
 
         json_data = requests.get(info_url).json()["Products"]
+        # Use to_pandas method to flatten json and clean data
         df = self.to_pandas_df(json_data)
+        # Set game title as index and use pandas to dict to return a dict with name as key and info as values
         df.set_index("ProductTitle", inplace=True)
         return df.to_dict(orient="index")
 
     def get_opencritic_reviews(self):
-        pass
+        """
+        Gets review data for all games in the gampeass catalogue
+        :return Dict: Dict with game name as key and review scores as value
+        """
+        reviews_list = []
+        not_found = []
+        for game, info in self.catalogue.items():
+            short_title = info["short_title"]
+            opencritic_id = search_game(game)
+
+            if type(opencritic_id) == int:
+                reviews = get_game_reviews(opencritic_id)
+                reviews_list.append(reviews)
+                self.catalogue[game]["opencritic"] = reviews
+            else:
+                self.catalogue[game]["opencritic"] = None
 
     @staticmethod
     def to_pandas_df(data):
@@ -92,8 +113,8 @@ class GamePass:
         # Drop columns that have been processed and are no longer needed
         df = df.drop(columns=["Images", "MarketProperties", "SortTitle"], axis=1)
         # Move "ShorTitle" first in dataframe and drop duplicate middle column
-        df.insert(0, "ShortTitle", df['ShortTitle'], allow_duplicates=True)
-        df = df.drop(df.columns[7], axis=1)
+        df.insert(0, "short_title", df['ShortTitle'])
+        df = df.drop("ShortTitle", axis=1)
 
         return df
 
@@ -150,8 +171,12 @@ class Game:
 
 
 xpass = GamePass()
-# df = xpass.to_pandas_df()
-print(xpass)
+reviews = xpass.get_opencritic_reviews()
+df = xpass.to_pandas_df()
+# print(xpass)
+# slice_dict = list(xpass.catalogue.keys())
+# for game in list(xpass.catalogue.keys())[:5]:
+#     print(game, get_game_reviews(search_game(game)))
 # games = [Game(game_id.get("id")) for game_id in xpass.catalogue[1:10]]
 #
 # for game in games:
