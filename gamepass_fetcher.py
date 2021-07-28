@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import arrow
 import numpy as np
@@ -82,6 +82,19 @@ class GamePass:
             else:
                 self.catalogue[game]["opencritic"] = None
 
+    def top_n_reviewed(self, n: Optional[int] = 10) -> pd.DataFrame:
+        """
+        Returns n revies sorted by review score from high to low, 100 being highest.
+        :param n: Number of wanted results
+        :return pd.DataFrame: A pandas dataframe
+        """
+        self.get_opencritic_reviews()
+        reviews_df = pd.DataFrame.from_dict(self.catalogue, orient="index")
+        # df.melt
+        reviews_df = reviews_df.dropna(subset=["opencritic"])
+        reviews_df["average_score"] = reviews_df["opencritic"].apply(lambda x: round(x.get("averageScore"), 2))
+        return reviews_df.nlargest(n, "average_score")
+
     @staticmethod
     def to_pandas_df(data):
         """
@@ -118,5 +131,5 @@ class GamePass:
 
 if __name__ == '__main__':
     xpass = GamePass()
-    xpass.get_opencritic_reviews()
+    xpass.top_n_reviewed()
 # df = xpass.to_pandas_df()
