@@ -1,11 +1,11 @@
-from sqlalchemy import create_engine
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, DateTime, Float
-from sqlalchemy.orm import relationship, backref
-from sqlalchemy.ext.declarative import declarative_base
+from typing import Optional
+
+from sqlmodel import Field, Session, SQLModel, create_engine
+
 
 # eng = create_engine('sqlite:///:gamepass:')
 
-Base = declarative_base()
+# Base = declarative_base()
 
 
 # games_reviews = Table(
@@ -16,29 +16,57 @@ Base = declarative_base()
 # )
 
 
-class Games(Base):
-    # __tablename__ = "games"
-    id = Column(Integer, primary_key=True)
-    short_title = Column(String)
-    developer_name = Column(String)
-    publisher_name = Column(String)
-    publisher_website = Column(String)
-    support_website = Column(String)
-    description = Column(String)
-    short_description = Column(String)
-    last_modified = Column(DateTime)
-    user_rating = Column(Float)
-    n_user_rating = Column(Integer)
-    poster_url = Column(String)
-    reviews = relationship("Reviews", backref="reviews", lazy=True)
+class Game(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    short_title: Optional[str] = None
+    developer_name: Optional[str] = None
+    publisher_name: Optional[str] = None
+    publisher_website: Optional[str] = None
+    support_website: Optional[str] = None
+    description: Optional[str] = None
+    short_description: Optional[str] = None
+    last_modified: Optional[str] = None
+    user_rating: Optional[float] = None
+    n_user_rating: Optional[int] = None
+    poster_url: Optional[str] = None
+    # reviews = relationship("Reviews", backref="reviews", lazy=True)
 
 
-class Reviews(Base):
-    review_id = Column(Integer, primary_key=True)
-    game_id = Column(Integer, ForeignKey("game.id"))
-    percent_recommended = Column(Float)
-    num_reviews = Column(Integer)
-    median_score = Column(Integer)
-    average_score = Column(Float)
-    percentile = Column(Integer)
-    first_released = Column(DateTime)
+class Review(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    percent_recommended: Optional[int] = None
+    num_reviews: Optional[int] = None
+    median_score: Optional[int] = None
+    average_score: Optional[float] = None
+    percentile: Optional[int] = None
+    first_released: Optional[str] = None
+    game_id: Optional[int] = Field(default=None, foreign_key="game.id")
+
+
+sqlite_file_name = "database.db"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+
+engine = create_engine(sqlite_url, echo=True)
+
+
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+
+def create_game(game):
+    with Session(engine) as session:
+        review = game.pop("opencritic")
+        review = Review(**review)
+
+
+def create_review(review):
+    with Session(engine) as session:
+        pass
+
+
+def main():
+    create_db_and_tables()
+
+
+if __name__ == "__main__":
+    main()
