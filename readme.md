@@ -1,4 +1,4 @@
-# Gamepass collection data
+# Gamepass catalogue data
 
 This library provides a way to download data about the gamepass catalogue with data from the Xbox store and 
 Opencritic including review scores. The aim of the project is to create a tool that 
